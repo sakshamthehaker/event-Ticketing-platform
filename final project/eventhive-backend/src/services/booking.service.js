@@ -1,8 +1,19 @@
 const mongoose = require("mongoose");
+const Razorpay = require("razorpay");
+const crypto = require("crypto");
 const Booking = require("../models/Booking");
 const Event = require("../models/Event");
 const ApiError = require("../utils/apiError");
 const { getPagination } = require("../utils/pagination");
+const env = require("../config/env");
+
+let razorpayInstance = null;
+if (!env.mockRazorpay && env.razorpayKeyId && env.razorpayKeySecret) {
+  razorpayInstance = new Razorpay({
+    key_id: env.razorpayKeyId,
+    key_secret: env.razorpayKeySecret
+  });
+}
 
 const createBooking = async ({ userId, eventId, seatsBooked }) => {
   const session = await mongoose.startSession();
@@ -32,15 +43,34 @@ const createBooking = async ({ userId, eventId, seatsBooked }) => {
           user: userId,
           event: eventId,
           seatsBooked,
-          paymentStatus: "mock",
-          bookingStatus: "confirmed"
+          paymentStatus: env.mockRazorpay ? "mock" : "pending",
+          bookingStatus: env.mockRazorpay ? "confirmed" : "pending"
         }
       ],
       { session }
     );
 
+    let razorpayOrder = null;
+    if (!env.mockRazorpay && razorpayInstance) {
+      const amountInPaise = updatedEvent.price * seatsBooked * 100;
+      razorpayOrder = await razorpayInstance.orders.create({
+        amount: amountInPaise,
+        currency: env.paymentCurrency,
+        receipt: booking[0]._id.toString(),
+        payment_capture: 1
+      });
+
+      booking[0].razorpayOrderId = razorpayOrder.id;
+      await booking[0].save({ session });
+    }
+
     await session.commitTransaction();
-    return booking[0];
+    
+    return {
+      booking: booking[0],
+      razorpayOrder,
+      razorpayKeyId: env.razorpayKeyId
+    };
   } catch (error) {
     await session.abortTransaction();
     throw error;
@@ -139,9 +169,42 @@ const getAllBookings = async (query, adminId) => {
   };
 };
 
+const verifyPayment = async ({ razorpay_order_id, razorpay_payment_id, razorpay_signature }) => {
+  if (!env.razorpayKeySecret) {
+    throw new ApiError(500, "Razorpay secret key not configured");
+  }
+
+  const generatedSignature = crypto
+    .createHmac("sha256", env.razorpayKeySecret)
+    .update(razorpay_order_id + "|" + razorpay_payment_id)
+    .digest("hex");
+
+  if (generatedSignature !== razorpay_signature) {
+    throw new ApiError(400, "Invalid payment signature");
+  }
+
+  const booking = await Booking.findOneAndUpdate(
+    { razorpayOrderId: razorpay_order_id },
+    {
+      paymentStatus: "success",
+      bookingStatus: "confirmed",
+      razorpayPaymentId: razorpay_payment_id,
+      razorpaySignature: razorpay_signature
+    },
+    { new: true }
+  );
+
+  if (!booking) {
+    throw new ApiError(404, "Booking not found for this order");
+  }
+
+  return booking;
+};
+
 module.exports = {
   createBooking,
   cancelBooking,
   getMyBookings,
-  getAllBookings
+  getAllBookings,
+  verifyPayment
 };

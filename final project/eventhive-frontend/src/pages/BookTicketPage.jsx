@@ -4,9 +4,23 @@ import toast from "react-hot-toast";
 import LoadingSpinner from "../components/LoadingSpinner";
 import PageShell from "../components/PageShell";
 import SeatSelector from "../components/SeatSelector";
-import { createBookingRequest } from "../services/bookingService";
+import { createBookingRequest, verifyPaymentRequest } from "../services/bookingService";
 import { getEventRequest } from "../services/eventService";
 import { formatCurrency } from "../utils/format";
+
+const loadRazorpayScript = () => {
+  return new Promise((resolve) => {
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
 
 export default function BookTicketPage() {
   const { eventId } = useParams();
@@ -42,13 +56,66 @@ export default function BookTicketPage() {
     eventObject.preventDefault();
     setSubmitting(true);
     try {
-      await createBookingRequest({
+      const response = await createBookingRequest({
         eventId,
         seatsBooked,
       });
-      toast.success("🎉 Booking confirmed!");
-      navigate("/my-bookings");
-    } finally {
+
+      const { booking, razorpayOrder, razorpayKeyId } = response.data.data;
+
+      if (!razorpayOrder) {
+        toast.success("🎉 Booking confirmed!");
+        navigate("/my-bookings");
+        return;
+      }
+
+      const isLoaded = await loadRazorpayScript();
+      if (!isLoaded) {
+        toast.error("Failed to load Razorpay SDK. Are you online?");
+        setSubmitting(false);
+        return;
+      }
+
+      const options = {
+        key: razorpayKeyId,
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency,
+        name: "EventHive",
+        description: `Tickets for ${event.title}`,
+        order_id: razorpayOrder.id,
+        handler: async function (response) {
+          try {
+            await verifyPaymentRequest({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            });
+            toast.success("🎉 Payment successful & Booking confirmed!");
+            navigate("/my-bookings");
+          } catch (error) {
+            toast.error("Payment verification failed. Please contact support.");
+          }
+        },
+        prefill: {
+          name: "EventHive User",
+          email: "user@example.com",
+        },
+        theme: {
+          color: "#8B5CF6", // Cyber-minimalist primary purple
+        },
+        modal: {
+          ondismiss: function () {
+            toast.error("Payment cancelled. You can try again.");
+            setSubmitting(false);
+          }
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to create booking");
       setSubmitting(false);
     }
   };
@@ -60,6 +127,8 @@ export default function BookTicketPage() {
         <p className="card">Event unavailable.</p>
       </PageShell>
     );
+
+  const isMockPayment = import.meta.env.VITE_MOCK_RAZORPAY === "true";
 
   return (
     <PageShell title="Book Ticket" subtitle={`🎪 ${event.title}`}>
@@ -89,7 +158,7 @@ export default function BookTicketPage() {
           }}
         >
           <p className="muted" style={{ fontSize: "0.85rem", marginBottom: "8px" }}>
-            💳 Payment Mode: Mock (no real payment)
+            💳 Payment Mode: {isMockPayment ? "Mock (no real payment)" : "Secure Checkout via Razorpay"}
           </p>
           <div
             style={{

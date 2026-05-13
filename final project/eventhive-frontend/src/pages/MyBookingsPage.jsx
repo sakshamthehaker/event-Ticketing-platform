@@ -54,14 +54,16 @@ export default function MyBookingsPage() {
 
               <div
                 className="info-grid"
-                style={{ gridTemplateColumns: "1fr 1fr", margin: "8px 0 12px" }}
+                style={{ display: "flex", flexDirection: "column", gap: "8px", margin: "8px 0 12px" }}
               >
-                <span>🎫 {booking.seatsBooked} seat(s)</span>
-                <span>
-                  Booking: <StatusBadge status={booking.bookingStatus} />
+                <span style={{ width: "100%", justifyContent: "space-between" }}>
+                  <span>🎫 {booking.seatsBooked} seat(s)</span>
                 </span>
-                <span>
-                  Payment: <StatusBadge status={booking.paymentStatus} />
+                <span style={{ width: "100%", justifyContent: "space-between" }}>
+                  <span>Booking:</span> <StatusBadge status={booking.bookingStatus} />
+                </span>
+                <span style={{ width: "100%", justifyContent: "space-between" }}>
+                  <span>Payment:</span> <StatusBadge status={booking.paymentStatus} />
                 </span>
               </div>
 

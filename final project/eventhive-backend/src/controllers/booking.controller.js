@@ -31,9 +31,15 @@ const getAllBookings = async (req, res) => {
   return success(res, 200, "All bookings fetched", result);
 };
 
+const verifyPayment = async (req, res) => {
+  const result = await bookingService.verifyPayment(req.body);
+  return success(res, 200, "Payment verified successfully", result);
+};
+
 module.exports = {
   createBooking,
   cancelBooking,
   getMyBookings,
-  getAllBookings
+  getAllBookings,
+  verifyPayment
 };

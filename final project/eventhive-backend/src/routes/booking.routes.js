@@ -12,6 +12,7 @@ router.use(protect);
 
 router.get("/me", asyncHandler(bookingController.getMyBookings));
 router.post("/", validate(createBookingSchema), asyncHandler(bookingController.createBooking));
+router.post("/verify", asyncHandler(bookingController.verifyPayment));
 router.patch("/:bookingId/cancel", validate(bookingIdParamSchema, "params"), asyncHandler(bookingController.cancelBooking));
 router.get("/", allowRoles("admin"), asyncHandler(bookingController.getAllBookings));
 

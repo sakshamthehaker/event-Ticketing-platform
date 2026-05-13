@@ -17,3 +17,5 @@ const env = require("./src/config/env");
   process.on("SIGINT", () => shutdown("SIGINT"));
   process.on("SIGTERM", () => shutdown("SIGTERM"));
 })();
+// Restart triggered for Razorpay
+

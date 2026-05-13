@@ -12,6 +12,7 @@ import ProfilePage from "./pages/ProfilePage";
 import NotFoundPage from "./pages/NotFoundPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import BackgroundEffects from "./components/BackgroundEffects";
+import Chatbot from "./components/Chatbot";
 
 function App() {
   return (
@@ -88,6 +89,7 @@ function App() {
 
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
+      <Chatbot />
     </>
   );
 }

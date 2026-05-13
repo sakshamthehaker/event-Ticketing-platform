@@ -4,3 +4,4 @@ export const createBookingRequest = (payload) => apiClient.post("/bookings", pay
 export const listMyBookingsRequest = (params) => apiClient.get("/bookings/me", { params });
 export const cancelBookingRequest = (bookingId) => apiClient.patch(`/bookings/${bookingId}/cancel`);
 export const listAllBookingsRequest = (params) => apiClient.get("/bookings", { params });
+export const verifyPaymentRequest = (payload) => apiClient.post("/bookings/verify", payload);

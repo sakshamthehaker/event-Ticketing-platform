@@ -19,13 +19,22 @@ const bookingSchema = new mongoose.Schema(
     },
     bookingStatus: {
       type: String,
-      enum: ["confirmed", "cancelled"],
-      default: "confirmed"
+      enum: ["pending", "confirmed", "cancelled"],
+      default: "pending"
     },
     paymentStatus: {
       type: String,
-      enum: ["mock"],
-      default: "mock"
+      enum: ["pending", "success", "failed", "mock"],
+      default: "pending"
+    },
+    razorpayOrderId: {
+      type: String
+    },
+    razorpayPaymentId: {
+      type: String
+    },
+    razorpaySignature: {
+      type: String
     }
   },
   { timestamps: { createdAt: true, updatedAt: false } }
